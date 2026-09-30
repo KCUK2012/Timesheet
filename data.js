@@ -11,6 +11,8 @@
   var GRAPH = "https://graph.microsoft.com/v1.0";
   var SCOPES = ["https://graph.microsoft.com/Sites.Read.All"];
   var pcaPromise = null;
+  var stage = "not started";
+  function setStage(t) { stage = t; }
 
   function getApp(cfg) {
     if (!pcaPromise) {
@@ -27,25 +29,42 @@
     return pcaPromise;
   }
 
+  function describe(e) {
+    if (!e) return "unknown error";
+    return [e.errorCode, e.message].filter(Boolean).join(": ");
+  }
+
   async function getToken(cfg) {
-    var app = await getApp(cfg);
+    var app;
+    setStage("Step 1 (start sign-in)");
+    try { app = await getApp(cfg); }
+    catch (e) { throw new Error("Step 1 (start sign-in) failed. " + describe(e)); }
     var request = { scopes: SCOPES };
+    setStage("Step 2 (sign-in)");
     try {
       var silent = await app.acquireTokenSilent(request);
       return silent.accessToken;
-    } catch (e) {
-      // Consent needed or session expired: ask the user once.
-      var interactive = await app.acquireTokenPopup(request);
-      return interactive.accessToken;
+    } catch (e1) {
+      try {
+        // Consent needed or session expired: ask the user once.
+        var interactive = await app.acquireTokenPopup(request);
+        return interactive.accessToken;
+      } catch (e2) {
+        throw new Error("Step 2 (sign-in) failed. Silent: " + describe(e1) + " | Pop-up: " + describe(e2));
+      }
     }
   }
 
-  async function graphGet(url, token) {
+  async function graphGet(url, token, step) {
     var res = await fetch(url, { headers: { Authorization: "Bearer " + token } });
-    if (res.status === 403 || res.status === 404) {
-      throw new Error("You do not have access to the client list in SharePoint, or it could not be found. Please contact the owner of the client list.");
+    if (!res.ok) {
+      var detail = "";
+      try { var body = await res.json(); detail = body && body.error ? (body.error.code + ": " + body.error.message) : ""; } catch (x) {}
+      var hint = (res.status === 403 || res.status === 404)
+        ? " You may not have access, or the site/file path in config.js is wrong."
+        : "";
+      throw new Error(step + " failed (HTTP " + res.status + ")." + hint + (detail ? " Details: " + detail : ""));
     }
-    if (!res.ok) throw new Error("SharePoint returned an error (HTTP " + res.status + ").");
     return res.json();
   }
 
@@ -106,8 +125,9 @@
 
   async function getSite(cfg, token) {
     var sitePath = (cfg.sitePath || "").trim();
+    setStage("Step 3 (find SharePoint site)");
     var siteUrl = GRAPH + "/sites/" + cfg.sharePointHost + (sitePath ? ":" + encodeURI(sitePath) : "");
-    return graphGet(siteUrl, token);
+    return graphGet(siteUrl, token, "Step 3 (find SharePoint site)");
   }
 
   /** Reads a CSV file from the site's default document library. */
@@ -118,12 +138,14 @@
     }).join("/");
     // Graph's /content endpoint redirects, which browsers block for authorised
     // cross-origin requests, so ask for the short-lived download URL instead.
+    setStage("Step 4 (find client file)");
     var item = await graphGet(GRAPH + "/sites/" + site.id + "/drive/root:" + encoded +
-      "?$select=id,name,@microsoft.graph.downloadUrl", token);
+      "?$select=id,name,@microsoft.graph.downloadUrl", token, "Step 4 (find client file)");
     var dl = item["@microsoft.graph.downloadUrl"];
-    if (!dl) throw new Error("The client file could not be downloaded from SharePoint.");
+    if (!dl) throw new Error("Step 5 (download client file) failed: no download link returned.");
+    setStage("Step 5 (download client file)");
     var res = await fetch(dl);
-    if (!res.ok) throw new Error("The client file could not be downloaded (HTTP " + res.status + ").");
+    if (!res.ok) throw new Error("Step 5 (download client file) failed (HTTP " + res.status + ").");
     return clientsFromCsv(await res.text(), cfg);
   }
 
@@ -131,7 +153,7 @@
   async function loadFromList(cfg, token, site) {
     var listQuery = GRAPH + "/sites/" + site.id + "/lists?$select=id,displayName&$filter=displayName eq '" +
       String(cfg.listName).replace(/'/g, "''") + "'";
-    var lists = await graphGet(listQuery, token);
+    var lists = await graphGet(listQuery, token, "Step 4 (find list)");
     if (!lists.value || !lists.value.length) {
       throw new Error('The SharePoint list "' + cfg.listName + '" was not found.');
     }
@@ -139,7 +161,7 @@
       "/items?$top=500&$expand=fields($select=" + cfg.nameColumn + "," + cfg.aliasColumn + ")";
     var clients = [];
     while (url) {
-      var page = await graphGet(url, token);
+      var page = await graphGet(url, token, "Step 5 (read list)");
       (page.value || []).forEach(function (item) {
         var f = item.fields || {};
         var name = String(f[cfg.nameColumn] || "").trim();
@@ -157,5 +179,5 @@
     return cfg.source === "list" ? loadFromList(cfg, token, site) : loadFromFile(cfg, token, site);
   }
 
-  root.KCData = { loadClients: loadClients, splitAliases: splitAliases, parseCsv: parseCsv, clientsFromCsv: clientsFromCsv };
+  root.KCData = { getStage: function () { return stage; }, loadClients: loadClients, splitAliases: splitAliases, parseCsv: parseCsv, clientsFromCsv: clientsFromCsv };
 })(window);

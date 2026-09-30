@@ -2,6 +2,7 @@
 (function () {
   "use strict";
 
+  var VERSION = "1.1.2";
   var S = window.KCSubject;
   var config = null;
   var sep = S.DEFAULT_SEP;
@@ -173,11 +174,19 @@
 
   async function loadConfig() {
     var cfg = window.KC_CONFIG;
-    if (!cfg || /FILL IN/.test(cfg.tenantId + cfg.clientId + cfg.sitePath + cfg.listName)) {
+    if (!cfg || /FILL IN/.test(String(cfg.tenantId) + cfg.clientId + cfg.sitePath + cfg.filePath + cfg.listName)) {
       throw new Error("The add-in has not been set up yet: config.js still needs the tenant, app and SharePoint details.");
     }
     setStatus("Loading client list from SharePoint...");
-    var clients = await window.KCData.loadClients(cfg);
+    var clients = await Promise.race([
+      window.KCData.loadClients(cfg),
+      new Promise(function (_, reject) {
+        setTimeout(function () {
+          reject(new Error("Timed out after 45 seconds at " + window.KCData.getStage() +
+            ". If this is sign-in, check the Entra redirect addresses and admin consent."));
+        }, 45000);
+      })
+    ]);
     setStatus("");
     return {
       separator: cfg.separator,
@@ -190,6 +199,12 @@
   // ---------- Start-up ----------
   Office.onReady(async function (info) {
     if (info.host !== Office.HostType.Outlook) return;
+
+    var ver = document.getElementById("version");
+    if (ver) {
+      var naa = Office.context.requirements.isSetSupported("NestedAppAuth", "1.1") ? "supported" : "not supported";
+      ver.textContent = "Version " + VERSION + " | Outlook silent sign-in: " + naa;
+    }
 
     ["clientBlock", "codeBlock", "clientFilter", "clientSelect", "codeSelect", "codeHint",
      "activity", "quick", "flagActual", "flagNft", "preview", "apply", "warnings", "status"]

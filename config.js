@@ -1,4 +1,5 @@
-* KC Timesheet: settings.
+/*
+ * KC Timesheet: settings.
  * This file is published with the add-in, so it must NOT contain client names.
  * Client names are read from SharePoint using the member of staff's own
  * Microsoft 365 sign-in.
@@ -6,23 +7,23 @@
 window.KC_CONFIG = {
   // Microsoft Entra ID
   tenantId: "d15beb8b-78b2-4fe4-9ead-0d1204377b43",   // Directory (tenant) ID: confirmed for kdpc.uk
-  clientId: "5c0081ab-6727-49c1-8b6e-ede656d392fd",   // Application (client) ID: please confirm
- 
+  clientId: "5c0081ab-6727-49c1-8b6e-ede656d392fd",   // Application (client) ID: confirmed
+
   // Where the client list lives in SharePoint
   sharePointHost: "kaleidoscopeconsultants.sharepoint.com",
-  sitePath: "",                        // "" = the main KC site (KC Operations)
+  sitePath: "/sites/KCcorpserv/KCOps",  // KC Ops site
   source: "file",                      // "file" = CSV in a document library; "list" = SharePoint list
   // Path inside the site's Documents library (do not include "Shared Documents")
-  filePath: "/Policies, Guidelines and ISO's/AI Policy 2026/KC Timesheets.csv",
+  filePath: "/ARCHIVED/Policies, Guidelines and ISO's/AI Policy 2026/KC Timesheets.csv",
   listName: "",                        // only used when source is "list"
- 
+
   // Column headings in the file (the first row of the CSV)
   nameColumn: "Title",                 // client name exactly as written in the subject
   aliasColumn: "Aliases",              // other recognised names, separated by semicolons
- 
+
   // Subject format
   separator: " – ",
- 
+
   // Internal codes (not confidential, so kept here)
   internalCodes: [
     { label: "Administration", subject: "Administration", hint: "Day to day running of the organisation, e.g. inbox, expenses, invoicing, filing, diary." },
@@ -37,6 +38,3 @@ window.KC_CONFIG = {
     "Administration": ["diary and email management"]
   }
 };
- 
-
-This file type cannot be opened.
