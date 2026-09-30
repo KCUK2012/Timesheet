@@ -1,32 +1,4 @@
-
-Claude Desktop (Windows), Connected
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Config · JS
-/*
- * KC Timesheet: settings.
+* KC Timesheet: settings.
  * This file is published with the add-in, so it must NOT contain client names.
  * Client names are read from SharePoint using the member of staff's own
  * Microsoft 365 sign-in.
