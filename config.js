@@ -1,28 +1,56 @@
+
+Claude Desktop (Windows), Connected
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Config · JS
 /*
  * KC Timesheet: settings.
  * This file is published with the add-in, so it must NOT contain client names.
- * Client names are read from the SharePoint list below, using the member of
- * staff's own Microsoft 365 sign-in.
- *
- * IT: fill in the four values marked FILL IN.
+ * Client names are read from SharePoint using the member of staff's own
+ * Microsoft 365 sign-in.
  */
 window.KC_CONFIG = {
-  // Microsoft Entra ID app registration (Entra admin centre > App registrations)
-  tenantId: "FILL IN: Directory (tenant) ID",
-  clientId: "FILL IN: Application (client) ID",
-
-  // SharePoint list holding the client names
+  // Microsoft Entra ID
+  tenantId: "d15beb8b-78b2-4fe4-9ead-0d1204377b43",   // Directory (tenant) ID: confirmed for kdpc.uk
+  clientId: "5c0081ab-6727-49c1-8b6e-ede656d392fd",   // Application (client) ID: please confirm
+ 
+  // Where the client list lives in SharePoint
   sharePointHost: "kaleidoscopeconsultants.sharepoint.com",
-  sitePath: "FILL IN: e.g. /sites/KCcorpserv/KCOps", // leave empty ("") for the root site
-  listName: "FILL IN: e.g. Timesheet clients",
-  // Column internal names in that list: Title holds the client name as written
-  // in the subject; Aliases holds other recognised forms separated by semicolons.
-  nameColumn: "Title",
-  aliasColumn: "Aliases",
-
+  sitePath: "",                        // "" = the main KC site (KC Operations)
+  source: "file",                      // "file" = CSV in a document library; "list" = SharePoint list
+  // Path inside the site's Documents library (do not include "Shared Documents")
+  filePath: "/Policies, Guidelines and ISO's/AI Policy 2026/KC Timesheets.csv",
+  listName: "",                        // only used when source is "list"
+ 
+  // Column headings in the file (the first row of the CSV)
+  nameColumn: "Title",                 // client name exactly as written in the subject
+  aliasColumn: "Aliases",              // other recognised names, separated by semicolons
+ 
   // Subject format
   separator: " – ",
-
+ 
   // Internal codes (not confidential, so kept here)
   internalCodes: [
     { label: "Administration", subject: "Administration", hint: "Day to day running of the organisation, e.g. inbox, expenses, invoicing, filing, diary." },
@@ -37,3 +65,6 @@ window.KC_CONFIG = {
     "Administration": ["diary and email management"]
   }
 };
+ 
+
+This file type cannot be opened.
