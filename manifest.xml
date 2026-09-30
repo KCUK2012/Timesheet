@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  KC Timesheet: Outlook add-in manifest (XML, add-in only manifest format).
+  Version 1.1: client list read from SharePoint with Microsoft 365 sign-in.
+  BEFORE USE: replace every https://REPLACE-WITH-YOUR-HOST with the HTTPS address
+  where the add-in files are hosted (no trailing slash). Then edit the first
+  <AppDomain> so it holds the domain only, e.g. https://kc-timesheet.github.io.
+-->
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+           xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
+           xsi:type="MailApp">
+
+  <Id>10935495-34e9-4ecc-bbe7-59f9352819bf</Id>
+  <Version>1.1.0.0</Version>
+  <ProviderName>Kaleidoscope Consultants</ProviderName>
+  <DefaultLocale>en-GB</DefaultLocale>
+  <DisplayName DefaultValue="KC Timesheet"/>
+  <Description DefaultValue="Builds calendar entry subjects in the KC timesheet format: External or Internal, client or code, activity."/>
+  <IconUrl DefaultValue="https://REPLACE-WITH-YOUR-HOST/icon-64.png"/>
+  <HighResolutionIconUrl DefaultValue="https://REPLACE-WITH-YOUR-HOST/icon-128.png"/>
+  <SupportUrl DefaultValue="https://REPLACE-WITH-YOUR-HOST/support.html"/>
+
+  <AppDomains>
+    <AppDomain>https://REPLACE-WITH-YOUR-HOST</AppDomain>
+    <AppDomain>https://login.microsoftonline.com</AppDomain>
+  </AppDomains>
+
+  <Hosts>
+    <Host Name="Mailbox"/>
+  </Hosts>
+
+  <Requirements>
+    <Sets>
+      <Set Name="Mailbox" MinVersion="1.1"/>
+    </Sets>
+  </Requirements>
+
+  <FormSettings>
+    <Form xsi:type="ItemEdit">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="https://REPLACE-WITH-YOUR-HOST/taskpane.html"/>
+      </DesktopSettings>
+    </Form>
+  </FormSettings>
+
+  <!-- Narrowest permission that allows the subject of the open item to be changed. -->
+  <Permissions>ReadWriteItem</Permissions>
+
+  <Rule xsi:type="RuleCollection" Mode="Or">
+    <Rule xsi:type="ItemIs" ItemType="Appointment" FormType="Edit"/>
+  </Rule>
+
+  <DisableEntityHighlighting>false</DisableEntityHighlighting>
+
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Requirements>
+      <bt:Sets DefaultMinVersion="1.3">
+        <bt:Set Name="Mailbox"/>
+      </bt:Sets>
+    </Requirements>
+
+    <Hosts>
+      <Host xsi:type="MailHost">
+        <DesktopFormFactor>
+          <!-- Appears on appointments and meetings you organise or create yourself. -->
+          <ExtensionPoint xsi:type="AppointmentOrganizerCommandSurface">
+            <OfficeTab id="TabDefault">
+              <Group id="kcTimesheetGroup">
+                <Label resid="GroupLabel"/>
+                <Control xsi:type="Button" id="kcTimesheetButton">
+                  <Label resid="ButtonLabel"/>
+                  <Supertip>
+                    <Title resid="ButtonLabel"/>
+                    <Description resid="ButtonTooltip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon16"/>
+                    <bt:Image size="32" resid="Icon32"/>
+                    <bt:Image size="80" resid="Icon80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <SourceLocation resid="TaskpaneUrl"/>
+                  </Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon16" DefaultValue="https://REPLACE-WITH-YOUR-HOST/icon-16.png"/>
+        <bt:Image id="Icon32" DefaultValue="https://REPLACE-WITH-YOUR-HOST/icon-32.png"/>
+        <bt:Image id="Icon80" DefaultValue="https://REPLACE-WITH-YOUR-HOST/icon-80.png"/>
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="TaskpaneUrl" DefaultValue="https://REPLACE-WITH-YOUR-HOST/taskpane.html"/>
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="GroupLabel" DefaultValue="KC Timesheet"/>
+        <bt:String id="ButtonLabel" DefaultValue="Timesheet"/>
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="ButtonTooltip" DefaultValue="Set this entry's subject in the KC timesheet format using client and code dropdowns."/>
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>

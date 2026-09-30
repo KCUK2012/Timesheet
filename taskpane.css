@@ -1,0 +1,60 @@
+/* Neutral styling. Replace the variables with Kaleidoscope brand colours if wanted. */
+:root {
+  --text: #1f1f1f;
+  --muted: #5c5c5c;
+  --accent: #0f6cbd;
+  --accent-text: #ffffff;
+  --border: #c7c7c7;
+  --bg: #ffffff;
+  --panel: #f5f5f5;
+  --warn-bg: #fff4ce;
+  --warn-text: #5c3c00;
+  --ok-text: #0e700e;
+  --err-text: #b10e1c;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+}
+main { padding: 12px 14px 20px; }
+h1 { font-size: 18px; margin: 0 0 4px; font-weight: 600; }
+.intro { margin: 0 0 12px; color: var(--muted); }
+label { display: block; font-weight: 600; margin: 12px 0 4px; }
+fieldset { border: 0; padding: 0; margin: 8px 0 0; }
+legend { font-weight: 600; margin-bottom: 4px; padding: 0; }
+fieldset label { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; margin: 2px 14px 2px 0; }
+fieldset.flags label { display: flex; }
+input[type="text"], input[type="search"], select {
+  width: 100%;
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+}
+select[size] { margin-top: 6px; }
+.hint { color: var(--muted); font-size: 12px; font-weight: 400; margin: 4px 0 0; }
+.quick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.quick button {
+  font: inherit; font-size: 12px; padding: 3px 8px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--panel); color: var(--text); cursor: pointer;
+}
+.preview { margin: 16px 0 10px; padding: 10px; background: var(--panel); border-radius: 4px; }
+.preview .label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.preview output { display: block; word-break: break-word; font-weight: 600; }
+#apply {
+  width: 100%; font: inherit; font-weight: 600; padding: 8px;
+  border: 0; border-radius: 4px; background: var(--accent); color: var(--accent-text); cursor: pointer;
+}
+#apply:disabled { opacity: 0.5; cursor: default; }
+.warnings div { margin-top: 10px; padding: 8px 10px; background: var(--warn-bg); color: var(--warn-text); border-radius: 4px; font-size: 13px; }
+.status { margin-top: 10px; font-size: 13px; }
+.status.ok { color: var(--ok-text); }
+.status.error { color: var(--err-text); }
+.footnote { margin-top: 18px; font-size: 12px; color: var(--muted); }
