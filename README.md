@@ -1,4 +1,46 @@
-# KC Timesheet: Outlook add-in, version 1.1 (Option D)
+# Outlook Timesheet: Outlook add-in, version 1.3
+
+Updated 15 October 2026. The add-in was previously called "KC Timesheet".
+
+## What changed in version 1.3
+
+| Area | Change |
+|---|---|
+| Name | Now "Outlook Timesheet" (panel title, ribbon group and manifest). The manifest Id is unchanged, so it updates the existing add-in rather than adding a second one. |
+| Lists | Read from `Outlook Timesheet Source Lookups.xlsx` in Documents > Policies, Guidelines, Handbooks and ISO's > Timesheet guidance (main KC site). Tabs: **Clients**, **Internal codes**. The Projects list and Area dropdown are removed. |
+| Subject format | External: `Client – Activity (External, Subscription Service)` or `(External, Project Work)`. Internal: `Code – Activity (Internal)`. ACTUAL goes inside the bracket. Not for timesheet: `NFT – Code – Activity` (code optional). Older subjects are still read when an entry is reopened, and "Full Service" is recognised as "Subscription Service". |
+| Work type | External entries need Subscription Service or Project Work (buttons, mandatory). |
+| Activity | Always required, including NFT entries. The "suitable to show a client" note shows on External entries only. |
+| NFT | Internal entries only. Codes marked **Yes** in the "Not for Timesheet" column (currently Placeholder (keep free)) tick NFT automatically and lock it. ACTUAL is hidden while NFT is ticked. |
+| Option not available | Always the last internal code; the Activity box describes the work. |
+| Recent clients | The last five clients each person applied appear at the top of their list. Stored only in that person's Outlook on that computer (browser local storage); nothing is sent anywhere. |
+| Footnote | Leave, sickness, OFF and TOIL go in the calendar with NFT ticked; they are reported from PeopleHR. |
+| Removed | Suggested-activity buttons. |
+| Manifest | Version 1.3.0.0. Re-sideload, or ask the Microsoft 365 administrator to update the central deployment. |
+
+---
+
+# Earlier notes: version 1.2
+
+Updated 14 October 2026.
+
+## What changed in version 1.2
+
+| Area | Change |
+|---|---|
+| Lists | Clients, internal codes and projects are read from one workbook, `KC Timesheets v1.2.xlsx`, in SharePoint (Documents > Timesheet guidance), tabs **Clients**, **Internal codes** and **Projects**. Editing the workbook changes the add-in; no code change is needed. |
+| Projects | External entries need a project. An optional Area dropdown (DP, CS, BS, Gov, Other) narrows the list; projects marked **All** appear under every area. **General** is the choice when there is no specific project. The area is not written into the subject. |
+| Subject format | `External – Client – Project – Activity`; `Internal – Code – Activity` (unchanged). |
+| NFT | Shown for Internal entries only. When ticked, the code and activity are optional, e.g. `Internal NFT` or `Internal – Administration NFT`. |
+| Reliability | One automatic retry if the lists fail to load, and a **Reload lists** link. |
+| New file | `xlsx-reader.js`: a small reader written for this add-in, using the browser's built-in decompression. No third-party spreadsheet library is used. |
+| Manifest | Unchanged (version 1.1.5.0). No reinstall is needed. |
+
+Rules for the workbook are on its **Read me** tab. Never upload the workbook to GitHub: it contains client names.
+
+---
+
+# Earlier notes: version 1.1 (Option D)
 
 Updated 30 September 2026. Draft for IT review.
 
@@ -11,7 +53,7 @@ In version 1.1 the client list is no longer published with the add-in. It is hel
 | Client list | `clients.json`, publicly readable | SharePoint list, read with the user's own sign-in |
 | Sign-in | None | Silent, using the Outlook account (Microsoft nested app authentication) |
 | Updating clients | Edit a file on GitHub | Edit the SharePoint list |
-| New files | | `config.js`, `data.js`, `redirect.html`, `lib/msal-browser.min.js` (Microsoft's sign-in library, version 4.30.0, MIT licence) |
+| New files | | `config.js`, `data.js`, `redirect.html`, `msal-browser.min.js` (Microsoft's sign-in library, version 4.30.0, MIT licence) |
 
 ## Who does what
 
@@ -36,7 +78,12 @@ The version 1.0 repository contains the client list and its file history.
 
 Deleting only `clients.json` is not enough, because earlier versions stay in the repository history.
 
-## Part B: Create the SharePoint list
+## Part B: Put the client list in SharePoint
+
+**Current set-up (CSV file).** `config.js` is set to read `KC Timesheets.csv` from the main KC site's Documents library (`source: "file"`). The file's first row must contain the headings **Title** and **Aliases**. Keep aliases separated by semicolons. If the file is moved or renamed, update `filePath` in `config.js`. Everyone who uses the add-in needs at least Read access to the file.
+
+**Alternative (SharePoint list).** Set `source: "list"` and `listName` in `config.js`, then follow the steps below.
+
 
 1. Choose a SharePoint site that only Kaleidoscope staff can access, with no guest or external users.
 2. On that site, choose **New > List > From CSV** and upload the import file supplied separately (`20260930_Timesheet clients SharePoint import_DPO.csv`). **Do not put that file in GitHub.**
@@ -70,7 +117,7 @@ These two IDs are identifiers, not secrets. It is normal for them to appear in a
    - `tenantId` and `clientId` from Part C
    - `sitePath` from Part B, for example `/sites/KCcorpserv/KCOps` (or `""` for the root site)
    - `listName`, for example `Timesheet clients`
-3. Upload the contents of this folder to the top level of the repository, including the `lib` folder. Do **not** upload the CSV.
+3. Upload the contents of this folder to the top level of the repository, including `msal-browser.min.js`. Do **not** upload the CSV.
 4. Go to **Settings > Pages**, set the source to the **main** branch and the **/ (root)** folder, and save. Leave **Custom domain** empty and tick **Enforce HTTPS**.
 5. Open `https://<hosting address>/taskpane.html` in a browser to check it loads.
 6. Edit `manifest.xml`:
@@ -107,7 +154,7 @@ These two IDs are identifiers, not secrets. It is normal for them to appear in a
 | Client added, renamed or removed | Edit the SharePoint list. Staff see the change the next time they open the panel. |
 | Internal codes or hints change | Edit `config.js` in the repository |
 | Hosting address changes | Update `manifest.xml` and both Entra redirect URIs, raise `<Version>`, then redeploy |
-| Sign-in library update | Replace `lib/msal-browser.min.js` with a newer 4.x release after testing |
+| Sign-in library update | Replace `msal-browser.min.js` with a newer 4.x release after testing |
 
 ## Troubleshooting
 

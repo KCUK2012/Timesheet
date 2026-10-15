@@ -1,9 +1,9 @@
 /*
- * KC Timesheet: sign-in and client list.
+ * Outlook Timesheet: sign-in and lists (clients, internal codes, projects).
  * Uses Microsoft's nested app authentication (NAA) through MSAL.js, so staff are
  * signed in silently with the Microsoft 365 account they already use in Outlook.
- * Reads the client list (a CSV file or a list) from SharePoint through Microsoft Graph with delegated
- * permission: staff can only read what their own SharePoint access allows.
+ * Reads the lists from SharePoint (an .xlsx workbook, a CSV file or a SharePoint list) through
+ * Microsoft Graph with delegated permission: staff can only read what their own SharePoint access allows.
  */
 (function (root) {
   "use strict";
@@ -138,11 +138,11 @@
     }).join("/");
     // Graph's /content endpoint redirects, which browsers block for authorised
     // cross-origin requests, so ask for the short-lived download URL instead.
-    setStage("Step 4 (find client file)");
+    setStage("Step 4 (find list file)");
     // Request the item without $select: SharePoint omits the download link when it is selected explicitly.
-    var item = await graphGet(GRAPH + "/sites/" + site.id + "/drive/root:" + encoded, token, "Step 4 (find client file)");
+    var item = await graphGet(GRAPH + "/sites/" + site.id + "/drive/root:" + encoded, token, "Step 4 (find list file)");
     var dl = item["@microsoft.graph.downloadUrl"] || item["@content.downloadUrl"];
-    setStage("Step 5 (download client file)");
+    setStage("Step 5 (download list file)");
     var res;
     if (dl) {
       // Pre-authorised, short-lived link: no Authorization header needed.
@@ -153,13 +153,85 @@
         res = await fetch(GRAPH + "/sites/" + site.id + "/drive/items/" + item.id + "/content",
           { headers: { Authorization: "Bearer " + token } });
       } catch (e) {
-        throw new Error("Step 5 (download client file) failed: no download link returned, and direct download was blocked. Fields received: " +
+        throw new Error("Step 5 (download list file) failed: no download link returned, and direct download was blocked. Fields received: " +
           Object.keys(item).join(", "));
       }
     }
-    if (!res.ok) throw new Error("Step 5 (download client file) failed (HTTP " + res.status + ")." +
+    if (!res.ok) throw new Error("Step 5 (download list file) failed (HTTP " + res.status + ")." +
       (dl ? "" : " No download link was returned; fields received: " + Object.keys(item).join(", ")));
-    return clientsFromCsv(await res.text(), cfg);
+    if (/\.xlsx$/i.test(path)) {
+      setStage("Step 6 (read workbook)");
+      return listsFromWorkbook(await root.KCXlsx.read(await res.arrayBuffer()), cfg);
+    }
+    return { clients: clientsFromCsv(await res.text(), cfg), internalCodes: null, projects: null };
+  }
+
+  /** Finds a tab by name, ignoring case and spaces at either end. */
+  function findSheet(book, name) {
+    var want = String(name).trim().toLowerCase();
+    for (var k in book) if (k.trim().toLowerCase() === want) return book[k];
+    return null;
+  }
+  function dropBlankRows(rows) {
+    return rows.filter(function (r) { return r.some(function (c) { return String(c).trim() !== ""; }); });
+  }
+
+  /** Turns the workbook's tabs into the add-in's lists. */
+  function listsFromWorkbook(book, cfg) {
+    var tabs = cfg.sheets || {};
+    var clientRows = findSheet(book, tabs.clients || "Clients");
+    if (!clientRows) throw new Error('The workbook has no "' + (tabs.clients || "Clients") + '" tab.');
+    clientRows = dropBlankRows(clientRows);
+    if (!clientRows.length) throw new Error("The Clients tab is empty.");
+    var h = clientRows[0];
+    var nameIdx = findColumn(h, cfg.nameColumn, ["Title", "Client", "Client name", "Name"]);
+    var aliasIdx = findColumn(h, cfg.aliasColumn, ["Aliases", "Alias"]);
+    if (nameIdx < 0) throw new Error('The Clients tab needs a column headed "' + cfg.nameColumn + '".');
+    var clients = [];
+    clientRows.slice(1).forEach(function (r) {
+      var name = String(r[nameIdx] || "").trim();
+      if (name) clients.push({ name: name, aliases: aliasIdx >= 0 ? splitAliases(r[aliasIdx]) : [] });
+    });
+
+    var internalCodes = null;
+    var codeRows = findSheet(book, tabs.internalCodes || "Internal codes");
+    if (codeRows) {
+      codeRows = dropBlankRows(codeRows);
+      var ch = codeRows[0] || [];
+      var codeIdx = findColumn(ch, "Code", ["Internal code", "Name"]);
+      var hintIdx = findColumn(ch, "Hint", ["Help", "Description"]);
+      var nftIdx = findColumn(ch, "Not for timesheet", ["NFT"]);
+      if (codeIdx >= 0) {
+        internalCodes = [];
+        codeRows.slice(1).forEach(function (r) {
+          var code = String(r[codeIdx] || "").trim();
+          if (code) internalCodes.push({
+            label: code, subject: code,
+            hint: hintIdx >= 0 ? String(r[hintIdx] || "").trim() : "",
+            nft: nftIdx >= 0 && /^(y|yes|true|1)$/i.test(String(r[nftIdx] || "").trim())
+          });
+        });
+        if (!internalCodes.length) internalCodes = null;
+      }
+    }
+
+    var projects = null;
+    var projRows = findSheet(book, tabs.projects || "Projects");
+    if (projRows) {
+      projRows = dropBlankRows(projRows);
+      var ph = projRows[0] || [];
+      var areaIdx = findColumn(ph, "Area", []);
+      var projIdx = findColumn(ph, "Project", ["Project name", "Name"]);
+      if (projIdx >= 0) {
+        projects = [];
+        projRows.slice(1).forEach(function (r) {
+          var pn = String(r[projIdx] || "").trim();
+          if (pn) projects.push({ area: areaIdx >= 0 ? String(r[areaIdx] || "").trim() : "", name: pn });
+        });
+        if (!projects.length) projects = null;
+      }
+    }
+    return { clients: clients, internalCodes: internalCodes, projects: projects };
   }
 
   /** Reads a SharePoint list. */
@@ -185,12 +257,23 @@
     return clients;
   }
 
-  /** Returns [{ name, aliases[] }] from SharePoint (CSV file or list, per config). */
-  async function loadClients(cfg) {
+  /**
+   * Returns { clients: [{ name, aliases[] }], internalCodes: [...] or null, projects: [{ area, name }] or null }.
+   * internalCodes and projects are null when the source does not hold them (CSV file or list).
+   */
+  async function loadLists(cfg) {
     var token = await getToken(cfg);
     var site = await getSite(cfg, token);
-    return cfg.source === "list" ? loadFromList(cfg, token, site) : loadFromFile(cfg, token, site);
+    if (cfg.source === "list") {
+      return { clients: await loadFromList(cfg, token, site), internalCodes: null, projects: null };
+    }
+    return loadFromFile(cfg, token, site);
   }
 
-  root.KCData = { getStage: function () { return stage; }, loadClients: loadClients, splitAliases: splitAliases, parseCsv: parseCsv, clientsFromCsv: clientsFromCsv };
+  root.KCData = {
+    getStage: function () { return stage; },
+    loadLists: loadLists,
+    listsFromWorkbook: listsFromWorkbook,
+    splitAliases: splitAliases, parseCsv: parseCsv, clientsFromCsv: clientsFromCsv
+  };
 })(window);

@@ -28,6 +28,7 @@ fieldset { border: 0; padding: 0; margin: 8px 0 0; }
 legend { font-weight: 600; margin-bottom: 4px; padding: 0; }
 fieldset label { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; margin: 2px 14px 2px 0; }
 fieldset.flags label { display: flex; }
+fieldset.worktype { margin-top: 12px; }
 input[type="text"], input[type="search"], select {
   width: 100%;
   font: inherit;
@@ -60,3 +61,11 @@ select[size] { margin-top: 6px; }
 .footnote { margin-top: 18px; font-size: 12px; color: var(--muted); }
 
 fieldset.flags { margin-bottom: 4px; }
+
+#reload.link {
+  margin-top: 8px; padding: 0; border: 0; background: none;
+  font: inherit; font-size: 12px; color: var(--accent); text-decoration: underline; cursor: pointer;
+}
+#reload.link:disabled { color: var(--muted); cursor: default; }
+label .hint { display: inline; }
+[hidden] { display: none !important; }

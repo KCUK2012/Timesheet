@@ -1,14 +1,18 @@
 /*
- * KC Timesheet: subject-line logic (no Office dependency, so it can be unit tested).
- * Format:  External – Client – Activity
- *          Internal – Code – Activity
- * Optional flags ACTUAL and NFT are appended at the end of the subject.
+ * Outlook Timesheet: subject-line logic (no Office dependency, so it can be unit tested).
+ * Format (from version 1.3):
+ *   External:  Client – Activity (External, Subscription Service)   or (External, Project Work)
+ *   Internal:  Code – Activity (Internal)
+ *   ACTUAL is added inside the bracket: (External, Project Work, ACTUAL), (Internal, ACTUAL)
+ *   Not for timesheet (Internal only): NFT – Code – Activity. The code is optional; the activity is not.
+ * Older subjects ("External – Client – Activity ACTUAL", "Internal – Code – Activity NFT") are still read.
  */
 (function (root) {
   "use strict";
 
   var DEFAULT_SEP = " – "; // space, en dash, space
   var FLAGS = ["ACTUAL", "NFT"];
+  var SPLIT = /\s+[–—-]\s+/;
 
   function clean(text) {
     return String(text || "").replace(/\s+/g, " ").trim();
@@ -18,41 +22,85 @@
   function build(parts, sep) {
     sep = sep || DEFAULT_SEP;
     var type = parts.type === "Internal" ? "Internal" : "External";
+    var flags = parts.flags || {};
+    var nft = type === "Internal" && !!flags.NFT;
     var target = clean(parts.target);
+    var workType = clean(parts.workType);
     var activity = clean(parts.activity);
-    if (!target || !activity) return "";
-    var subject = [type, target, activity].join(sep);
-    FLAGS.forEach(function (flag) {
-      if (parts.flags && parts.flags[flag]) subject += " " + flag;
-    });
-    return subject;
+    if (!activity) return "";
+    if (nft) return ["NFT", target, activity].filter(Boolean).join(sep);
+    var tags;
+    if (type === "External") {
+      if (!target || !workType) return "";
+      tags = ["External", workType];
+    } else {
+      if (!target) return "";
+      tags = ["Internal"];
+    }
+    if (flags.ACTUAL) tags.push("ACTUAL");
+    return target + sep + activity + " (" + tags.join(", ") + ")";
+  }
+
+  function splitSegs(text) {
+    text = clean(text);
+    return text ? text.split(SPLIT) : [];
   }
 
   /**
    * Parse an existing subject so the panel can be pre-filled.
-   * Accepts an en dash, em dash or hyphen as the separator.
-   * Returns null if the subject is not in the timesheet format.
+   * Returns null if the subject is not in a timesheet format, otherwise
+   * { type, segments, workType, flags, legacy }:
+   *   External segments: [client, activity...]  (legacy: [client, work type?, activity...])
+   *   Internal segments: [code, activity...]    (NFT: [code?, activity...])
    */
   function parse(subject) {
     var s = clean(subject);
     var flags = { ACTUAL: false, NFT: false };
-    FLAGS.forEach(function (flag) {
-      var re = new RegExp("\\s+" + flag + "$");
-      // Flags may appear in either order at the end.
-      if (re.test(s)) { flags[flag] = true; s = s.replace(re, ""); }
-    });
-    FLAGS.forEach(function (flag) {
-      var re = new RegExp("\\s+" + flag + "$");
-      if (re.test(s)) { flags[flag] = true; s = s.replace(re, ""); }
-    });
-    var m = s.match(/^(External|Internal)\s+[–—-]\s+(.+?)\s+[–—-]\s+(.+)$/i);
+
+    // Not for timesheet: "NFT – ...".
+    var n = s.match(/^NFT(?:\s+[–—-]\s+(.*))?$/i);
+    if (n) {
+      flags.NFT = true;
+      return { type: "Internal", segments: splitSegs(n[1]), workType: null, flags: flags, legacy: false };
+    }
+
+    // Tags in a bracket at the very end, starting with External or Internal.
+    var b = s.match(/^(.*\S)\s*\(([^()]*)\)$/);
+    if (b) {
+      var tags = b[2].split(",").map(clean).filter(Boolean);
+      var first = (tags[0] || "").toLowerCase();
+      if (first === "external" || first === "internal") {
+        var workType = null;
+        tags.slice(1).forEach(function (t) {
+          var up = t.toUpperCase();
+          if (FLAGS.indexOf(up) !== -1) flags[up] = true;
+          else if (!workType) workType = t;
+        });
+        return {
+          type: first === "external" ? "External" : "Internal",
+          segments: splitSegs(b[1]), workType: workType, flags: flags, legacy: false
+        };
+      }
+    }
+
+    // Older format: "External – ..." / "Internal – ..." with flags at the end.
+    for (var k = 0; k < 2; k++) {
+      FLAGS.forEach(function (flag) {
+        var re = new RegExp("\\s+" + flag + "$");
+        if (re.test(s)) { flags[flag] = true; s = s.replace(re, ""); }
+      });
+    }
+    var m = s.match(/^(External|Internal)\b(.*)$/i);
     if (!m) return null;
-    return {
-      type: m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase(),
-      target: m[2],
-      activity: m[3],
-      flags: flags
-    };
+    var rest = m[2].trim();
+    var segs = [];
+    if (rest) {
+      if (!/^[–—-]\s+/.test(rest)) return null;
+      segs = splitSegs(rest.replace(/^[–—-]\s+/, ""));
+    }
+    var type = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
+    if (type === "External") flags.NFT = false;
+    return { type: type, segments: segs, workType: null, flags: flags, legacy: true };
   }
 
   /** Warnings based on the timesheet rules for timing. Dates are JS Date objects. */
